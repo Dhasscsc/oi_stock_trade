@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>OI + Cash Scanner | Buy/Sell Dashboard</title>
+    <!-- SheetJS Library for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans Tamil', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #1e2a3a;
+        }
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: white;
+            border-radius: 28px;
+            padding: 20px 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin: 0 0 5px;
+            color: #0b3b5f;
+        }
+        .sub {
+            color: #2c5282;
+            margin-bottom: 20px;
+            border-left: 4px solid #2b6cb0;
+            padding-left: 15px;
+        }
+        .upload-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            margin-bottom: 25px;
+            background: #eef2f7;
+            padding: 20px;
+            border-radius: 24px;
+        }
+        .upload-box {
+            flex: 1;
+            min-width: 250px;
+        }
+        .upload-box label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+            color: #1e4a76;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #90cdf4;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+        }
+        button {
+            background: #2b6cb0;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1rem;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+            align-items: center;
+        }
+        .btn-excel {
+            background: #2e7d32;
+        }
+        .btn-excel:hover {
+            background: #1b5e20;
+        }
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+            align-items: center;
+        }
+        .filter-btn {
+            background: #e2e8f0;
+            color: #1a202c;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .filter-btn.active {
+            background: #2b6cb0;
+            color: white;
+        }
+        /* DASHBOARD CARDS */
+        .stats-dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+            justify-content: space-between;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 120px;
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 5px solid;
+        }
+        .stat-card.buy { border-left-color: #2ecc71; }
+        .stat-card.sell { border-left-color: #e74c3c; }
+        .stat-card.hold { border-left-color: #f39c12; }
+        .stat-card.avoid { border-left-color: #95a5a6; }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+        /* TABLE WITH STICKY HEADER */
+        .table-wrapper {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #cbd5e0;
+            border-radius: 16px;
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: #1e4a76;
+            color: white;
+            padding: 12px 8px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border: 1px solid #2c5282;
+        }
+        td {
+            border: 1px solid #cbd5e0;
+            padding: 8px 6px;
+            text-align: center;
+        }
+        .buy-row { background: #c6f6d5; }
+        .sell-row { background: #fed7d7; }
+        .hold-row { background: #feebc8; }
+        .avoid-row { background: #e2e8f0; }
+        .signal-badge {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        .select-col {
+            width: 40px;
+            text-align: center;
+        }
+        .note {
+            margin-top: 25px;
+            background: #fef9e3;
+            padding: 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            border-left: 5px solid #ecc94b;
+        }
+        @media (max-width: 700px) {
+            th, td { font-size: 11px; padding: 5px; }
+            .stat-number { font-size: 1.5rem; }
+        }
+        footer {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 20px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 OI + Cash Market Scanner</h1>
+    <div class="sub">தின வர்த்தகத்திற்கான Buy/Sell | Stop Loss | Target</div>
+
+    <div class="upload-grid">
+        <div class="upload-box">
+            <label>📁 1. Futures & Options OI CSV (Spurts-in-OI...csv)</label>
+            <input type="file" id="oiFile" accept=".csv">
+        </div>
+        <div class="upload-box">
+            <label>📁 2. Cash எக்விட்டி CSV (StocksTraded.csv)</label>
+            <input type="file" id="cashFile" accept=".csv">
+        </div>
+    </div>
+    <div class="btn-group">
+        <button id="analyzeBtn">🚀 பகுப்பாய்வு செய் & பரிந்துரை காண்க</button>
+        <button id="exportExcelBtn" class="btn-excel" style="display:none;">📎 தேர்வு செய்த பங்குகளை Excel (XLSX) ஆக பதிவிறக்கம்</button>
+    </div>
+
+    <!-- STATS DASHBOARD -->
+    <div id="statsDashboard" style="display: none;"></div>
+
+    <div class="filters" id="filterBar" style="display: none;">
+        <button class="filter-btn active" data-filter="all">📌 அனைத்தும்</button>
+        <button class="filter-btn" data-filter="BUY">🟢 BUY</button>
+        <button class="filter-btn" data-filter="SELL">🔴 SELL</button>
+        <button class="filter-btn" data-filter="HOLD">🟠 HOLD</button>
+        <button class="filter-btn" data-filter="AVOID">⚪ AVOID</button>
+    </div>
+
+    <div id="results" style="margin-top: 20px;">
+        <p style="text-align: center; padding: 40px;">⬆️ முதலில் இரண்டு CSV கோப்புகளையும் பதிவேற்றி, "பகுப்பாய்வு செய்" என்பதை அழுத்தவும்.</p>
+    </div>
+    <div class="note">
+        ⚡ <strong>எப்படி பயன்படுத்துவது:</strong> BUY → OI +3% & Cash Volume >20L & Value >100Cr | SELL → OI -3% & Value >50Cr | STOP LOSS = LTP ± 2% | TARGET = LTP ± 4% .<br>
+        ✅ <strong>புதியது:</strong> Excel Export - நீங்கள் checkbox மூலம் பங்குகளை தேர்வு செய்து, WhatsApp-க்கு அனுப்ப XLSX பதிவிறக்கம் செய்யலாம். Sticky Header-ஆக உள்ளது.
+    </div>
+    <footer>📅 தரவு அடிப்படையில் தினமும் புதுப்பிக்கலாம் | தொழில்நுட்ப பகுப்பாய்வு மட்டும்</footer>
+</div>
+
+<script>
+    let oiDataRaw = [];
+    let cashDataRaw = [];
+    let currentMergedData = [];
+    let currentFilter = "all";
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+        const oiFile = document.getElementById('oiFile').files[0];
+        const cashFile = document.getElementById('cashFile').files[0];
+        if (!oiFile || !cashFile) {
+            alert("இரண்டு CSV கோப்புகளையும் பதிவேற்றவும்!");
+            return;
+        }
+        oiDataRaw = await parseCSV(oiFile);
+        cashDataRaw = await parseCSV(cashFile);
+        currentMergedData = mergeData(oiDataRaw, cashDataRaw);
+        updateDashboard(currentMergedData);
+        displayResults(currentMergedData, currentFilter);
+        document.getElementById('filterBar').style.display = 'flex';
+        document.getElementById('exportExcelBtn').style.display = 'inline-block';
+        document.getElementById('statsDashboard').style.display = 'flex';
+    });
+
+    function parseCSV(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+                const headers = lines[0].split(',').map(h => h.replace(/['"\uFEFF]/g, '').trim());
+                const data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    if (values.length < headers.length) continue;
+                    let obj = {};
+                    headers.forEach((h, idx) => {
+                        let val = values[idx] ? values[idx].replace(/['"]/g, '').trim() : "";
+                        obj[h] = isNaN(parseFloat(val)) ? val : parseFloat(val);
+                    });
+                    data.push(obj);
+                }
+                resolve(data);
+            };
+            reader.readAsText(file, "UTF-8");
+        });
+    }
+
+    function mergeData(oiArr, cashArr) {
+        let oiMap = new Map();
+        oiArr.forEach(row => {
+            let sym = (row["Symbol"] || "").toString().toUpperCase().trim();
+            if (sym) {
+                let chngPct = parseFloat(row["%chng in OI"]);
+                if (isNaN(chngPct)) chngPct = 0;
+                oiMap.set(sym, { oiChangePct: chngPct });
+            }
+        });
+        
+        let merged = [];
+        cashArr.forEach(cash => {
+            let sym = (cash["Symbol"] || "").toString().toUpperCase().trim();
+            let ltp = parseFloat(cash["LTP"]);
+            let volumeLakhs = parseFloat(cash["Volume (Lakhs)"]);
+            let valueCr = parseFloat(cash["Value (₹ Crores)"]);
+            if (isNaN(ltp)) ltp = 0;
+            if (isNaN(volumeLakhs)) volumeLakhs = 0;
+            if (isNaN(valueCr)) valueCr = 0;
+            
+            let oiInfo = oiMap.get(sym) || { oiChangePct: 0 };
+            let oiChange = oiInfo.oiChangePct;
+            
+            let signal = "HOLD";
+            let reason = "";
+            if (oiChange > 3 && volumeLakhs > 20 && valueCr > 100) {
+                signal = "BUY";
+                reason = `OI +${oiChange.toFixed(2)}%, High Vol/Val`;
+            } else if (oiChange > 8 && volumeLakhs > 30 && valueCr > 300) {
+                signal = "BUY";
+                reason = `Strong OI +${oiChange.toFixed(2)}%`;
+            } else if (oiChange < -3 && valueCr > 50) {
+                signal = "SELL";
+                reason = `OI ${oiChange.toFixed(2)}% drop, High exit`;
+            } else if (oiChange < -5 && valueCr > 30) {
+                signal = "SELL";
+                reason = `Sharp OI fall ${oiChange.toFixed(2)}%`;
+            } else if (oiChange < -4) {
+                signal = "AVOID";
+                reason = `OI falling ${oiChange.toFixed(2)}%`;
+            } else if (valueCr < 20 && oiChange < 0) {
+                signal = "AVOID";
+                reason = "Low liquidity + OI negative";
+            } else if (oiChange > 1 && valueCr < 30) {
+                signal = "HOLD";
+                reason = "OI up but low cash flow";
+            } else {
+                signal = "HOLD";
+                reason = "Neutral / mixed";
+            }
+            
+            let stopLoss = 0, target = 0;
+            if (ltp > 0) {
+                if (signal === "BUY") {
+                    stopLoss = +(ltp * 0.98).toFixed(2);
+                    target = +(ltp * 1.04).toFixed(2);
+                } else if (signal === "SELL") {
+                    stopLoss = +(ltp * 1.02).toFixed(2);
+                    target = +(ltp * 0.96).toFixed(2);
+                } else {
+                    stopLoss = +(ltp * 0.98).toFixed(2);
+                    target = +(ltp * 1.02).toFixed(2);
+                }
+            }
+            
+            merged.push({
+                symbol: sym,
+                ltp: ltp,
+                cashVolumeLakhs: volumeLakhs,
+                cashValueCr: valueCr,
+                oiChangePct: oiChange,
+                signal: signal,
+                reason: reason,
+                stopLoss: stopLoss,
+                target: target,
+                selected: false
+            });
+        });
+        merged.sort((a,b) => Math.abs(b.oiChangePct) - Math.abs(a.oiChangePct) || b.cashValueCr - a.cashValueCr);
+        return merged;
+    }
+    
+    function updateDashboard(data) {
+        let buyCount = data.filter(d => d.signal === "BUY").length;
+        let sellCount = data.filter(d => d.signal === "SELL").length;
+        let holdCount = data.filter(d => d.signal === "HOLD").length;
+        let avoidCount = data.filter(d => d.signal === "AVOID").length;
+        
+        document.getElementById('statsDashboard').innerHTML = `
+            <div class="stat-card buy"><div class="stat-number">${buyCount}</div><div class="stat-label">🟢 BUY</div></div>
+            <div class="stat-card sell"><div class="stat-number">${sellCount}</div><div class="stat-label">🔴 SELL</div></div>
+            <div class="stat-card hold"><div class="stat-number">${holdCount}</div><div class="stat-label">🟠 HOLD</div></div>
+            <div class="stat-card avoid"><div class="stat-number">${avoidCount}</div><div class="stat-label">⚪ AVOID</div></div>
+            <div class="stat-card"><div class="stat-number">${data.length}</div><div class="stat-label">📊 மொத்தம்</div></div>
+        `;
+    }
+    
+    function displayResults(data, filter) {
+        currentFilter = filter;
+        let filtered = data;
+        if (filter !== "all") {
+            filtered = data.filter(item => item.signal === filter);
+        }
+        if (filtered.length === 0) {
+            document.getElementById('results').innerHTML = `<p style="padding: 30px; text-align:center;">⚠️ ${filter} பிரிவில் எந்த பங்கும் இல்லை.</p>`;
+            return;
+        }
+        
+        let html = `<div class="table-wrapper">
+                    <table id="stockTable">
+                        <thead>
+                            <tr>
+                                <th class="select-col"><input type="checkbox" id="selectAllCheckbox"></th>
+                                <th>Symbol</th><th>LTP (₹)</th><th>OI % chng</th><th>Cash Vol (Lakhs)</th>
+                                <th>Cash Value (Cr)</th><th>Signal</th><th>Stop Loss (₹)</th><th>Target (₹)</th><th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        filtered.forEach((row, idx) => {
+            let rowClass = "";
+            if (row.signal === "BUY") rowClass = "buy-row";
+            else if (row.signal === "SELL") rowClass = "sell-row";
+            else if (row.signal === "HOLD") rowClass = "hold-row";
+            else rowClass = "avoid-row";
+            
+            html += `<tr class="${rowClass}" data-symbol="${row.symbol}">
+                        <td class="select-col"><input type="checkbox" class="stock-checkbox" data-symbol="${row.symbol}" ${row.selected ? 'checked' : ''}></td>
+                        <td><b>${row.symbol}</b></td>
+                        <td>${row.ltp.toFixed(2)}</td>
+                        <td>${row.oiChangePct > 0 ? '+' : ''}${row.oiChangePct.toFixed(2)}%</td>
+                        <td>${row.cashVolumeLakhs.toFixed(2)}</td>
+                        <td>${row.cashValueCr.toFixed(2)}</td>
+                        <td><span class="signal-badge" style="background:${row.signal==='BUY'?'#2ecc71':row.signal==='SELL'?'#e74c3c':row.signal==='HOLD'?'#f39c12':'#95a5a6'}">${row.signal}</span></td>
+                        <td>${row.stopLoss > 0 ? row.stopLoss.toFixed(2) : '-'}</td>
+                        <td>${row.target > 0 ? row.target.toFixed(2) : '-'}</td>
+                        <td style="font-size:12px;">${row.reason}</td>
+                    </tr>`;
+        });
+        html += `</tbody></table></div><div style="margin-top: 10px;">✅ ${filtered.length} பரிந்துரைகள் காட்டப்படுகின்றன</div>`;
+        document.getElementById('results').innerHTML = html;
+        
+        // Add event listeners for checkboxes
+        document.querySelectorAll('.stock-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                let sym = e.target.getAttribute('data-symbol');
+                let stock = currentMergedData.find(s => s.symbol === sym);
+                if (stock) stock.selected = e.target.checked;
+            });
+        });
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => {
+                let isChecked = e.target.checked;
+                document.querySelectorAll('.stock-checkbox').forEach(cb => {
+                    cb.checked = isChecked;
+                    let sym = cb.getAttribute('data-symbol');
+                    let stock = currentMergedData.find(s => s.symbol === sym);
+                    if (stock) stock.selected = isChecked;
+                });
+            });
+        }
+    }
+    
+    // Excel Export only selected stocks
+    document.getElementById('exportExcelBtn').addEventListener('click', () => {
+        let selectedStocks = currentMergedData.filter(s => s.selected === true);
+        if (selectedStocks.length === 0) {
+            alert("Excel-க்கு ஏற்றுமதி செய்ய குறைந்தது ஒரு பங்கையாவது தேர்வு செய்யவும் (checkbox)!");
+            return;
+        }
+        let sheetData = selectedStocks.map(s => ({
+            "Symbol": s.symbol,
+            "LTP (₹)": s.ltp,
+            "OI % Change": s.oiChangePct.toFixed(2) + "%",
+            "Cash Volume (Lakhs)": s.cashVolumeLakhs,
+            "Cash Value (Cr)": s.cashValueCr,
+            "Signal": s.signal,
+            "Stop Loss (₹)": s.stopLoss,
+            "Target (₹)": s.target,
+            "Reason": s.reason
+        }));
+        let ws = XLSX.utils.json_to_sheet(sheetData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Trading_Recommendations");
+        XLSX.writeFile(wb, `Trading_Signals_${new Date().toISOString().slice(0,19)}.xlsx`);
+    });
+    
+    // Filter buttons
+    function attachFilters() {
+        const btns = document.querySelectorAll('.filter-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                let filterVal = btn.getAttribute('data-filter');
+                displayResults(currentMergedData, filterVal);
+            });
+        });
+    }
+    // Re-attach filters after each display
+    const observer = new MutationObserver(() => attachFilters());
+    observer.observe(document.getElementById('filterBar'), { childList: true, subtree: true });
+    attachFilters();
+</script>
+</body>
+</html>
